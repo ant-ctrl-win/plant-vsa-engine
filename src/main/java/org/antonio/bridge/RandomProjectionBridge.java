@@ -1,34 +1,33 @@
 package org.antonio.bridge;
-import org.antonio.vsa.VsaVector;
 
+import org.antonio.vsa.VsaVector;
 import java.util.Random;
 
 /**
- * Traduce i float in uscita dalla CNN in bit per la VSA (SBC).
+ * Traduce i float in uscita dalla CNN in vettori per la VSA (SBC).
+ * Implementa il paradigma "Late Binarization" e la Normalizzazione L2.
  */
 public class RandomProjectionBridge {
 
     private final int cnnFeatureSize;
     private final int vsaDimensions;
 
-    // Invece di float, usiamo boolean per la matrice per risparmiare RAM!
-    // true = +1, false = -1
+    // Matrice logica per la proiezione casuale (true = +1, false = -1)
     private final boolean[][] projectionMatrix;
 
     /**
-     * Inizializza il ponte.
-     * @param cnnFeatureSize Es. 512 (Test B) o 38 (Test A)
-     * @param seed Il seme fisso per garantire che la matrice sia sempre identica
+     * Inizializza il ponte con una matrice fissa e deterministica.
+     * @param cnnFeatureSize Dimensione output CNN (es. 1280)
+     * @param seed Il seme per garantire che la matrice sia sempre identica (es. 42L)
      */
     public RandomProjectionBridge(int cnnFeatureSize, long seed) {
         this.cnnFeatureSize = cnnFeatureSize;
         this.vsaDimensions = VsaVector.DIMENSIONS;
         this.projectionMatrix = new boolean[cnnFeatureSize][vsaDimensions];
 
-        // Inizializziamo il generatore con il nostro seme fisso
+        // Inizializziamo il generatore con il seme fisso
         Random random = new Random(seed);
 
-        // Riempiamo la matrice di +1 (true) e -1 (false)
         for (int i = 0; i < cnnFeatureSize; i++) {
             for (int d = 0; d < vsaDimensions; d++) {
                 projectionMatrix[i][d] = random.nextBoolean();
@@ -37,43 +36,67 @@ public class RandomProjectionBridge {
     }
 
     /**
-     * Il momento magico: da array continuo (CNN) a Ipervettore BSC
+     * FASE 1: Proiezione Continua & Normalizzazione L2
+     * Prende le feature della CNN e le spalma su 10.000 dimensioni SENZA binarizzarle.
+     * @param cnnFeatures Vettore estratto dalla CNN (es. float[1280])
+     * @return Vettore VSA continuo normalizzato (double[10000])
      */
-    public VsaVector projectToVsa(float[] cnnFeatures) {
+    public double[] projectToContinuous(float[] cnnFeatures) {
         if (cnnFeatures.length != cnnFeatureSize) {
             throw new IllegalArgumentException("Le feature CNN non combaciano con la matrice!");
         }
 
-        // Calcoliamo quanti 'long' ci servono per contenere 10000 bit (157)
-        int numBlocks = (vsaDimensions + 63) / 64;
-        long[] bscBlocks = new long[numBlocks];
+        double[] continuousVector = new double[vsaDimensions];
+        double sumOfSquares = 0.0;
 
-        // Iteriamo su ogni dimensione del nuovo ipervettore (da 0 a 9999)
+        // 1. Proiezione Casuale (Prodotto Scalare)
         for (int d = 0; d < vsaDimensions; d++) {
-
-            // 1. Calcoliamo il Prodotto Scalare (Dot Product)
-            float sum = 0.0f;
+            double sum = 0.0;
             for (int i = 0; i < cnnFeatureSize; i++) {
-                // Se la matrice in quella cella è true (+1), sommiamo la feature.
-                // Se è false (-1), la sottraiamo.
                 if (projectionMatrix[i][d]) {
                     sum += cnnFeatures[i];
                 } else {
                     sum -= cnnFeatures[i];
                 }
             }
+            continuousVector[d] = sum;
+            sumOfSquares += sum * sum;
+        }
 
-            // 2. La Funzione Segno (Thresholding)
-            // Se la somma è > 0, decidiamo che il bit sarà 1. Se <= 0, sarà 0.
-            if (sum > 0) {
-                // 3. Bit-Packing: Inseriamo l'1 nel posto giusto dentro l'array di long!
-                int blockIndex = d / 64; // Trova in quale dei 157 long dobbiamo andare
-                int bitPosition = d % 64; // Trova quale dei 64 bit di QUEL long dobbiamo accendere
+        // 2. Normalizzazione L2 (Schiaccia il vettore sulla superficie di un'ipersfera di raggio 1)
+        double magnitude = Math.sqrt(sumOfSquares);
 
-                // Usiamo l'operatore di Shift (<<) e l'operatore OR (|)
+        // Evitiamo divisioni per zero se la CNN restituisce un vettore nullo
+        if (magnitude > 1e-9) {
+            for (int d = 0; d < vsaDimensions; d++) {
+                continuousVector[d] /= magnitude;
+            }
+        }
+
+        return continuousVector;
+    }
+
+    /**
+     * FASE 2: Late Binarization (Ritorno alla BSC)
+     * Trasforma un vettore continuo e standardizzato nell'ipervettore binario finale.
+     * @param continuousVector Il vettore (double[10000]) post Z-Score o post Bundling
+     * @return VsaVector pronto per il calcolo della Distanza di Hamming
+     */
+    public VsaVector binarize(double[] continuousVector) {
+        if (continuousVector.length != vsaDimensions) {
+            throw new IllegalArgumentException("Dimensione vettore continuo errata!");
+        }
+
+        int numBlocks = (vsaDimensions + 63) / 64;
+        long[] bscBlocks = new long[numBlocks];
+
+        for (int d = 0; d < vsaDimensions; d++) {
+            // Funzione Segno: se > 0, il bit diventa 1. Se <= 0, rimane 0.
+            if (continuousVector[d] > 0) {
+                int blockIndex = d / 64;
+                int bitPosition = d % 64;
                 bscBlocks[blockIndex] |= (1L << bitPosition);
             }
-            // Se sum <= 0, non facciamo nulla, perché gli array in Java nascono già pieni di zeri.
         }
 
         return new VsaVector(bscBlocks);

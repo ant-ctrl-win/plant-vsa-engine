@@ -1,0 +1,30 @@
+package org.antonio;
+
+import org.antonio.bridge.DatasetStatTracker;
+import org.antonio.bridge.RandomProjectionBridge;
+import org.antonio.domain.PlantVillageTrainer;
+import org.antonio.perception.PcFeatureExtractor;
+
+public class Trainer {
+    public static void main(String[] args) {
+        String modelPath = "src/main/resources/mobilenet_savedmodel";
+        // Sostituisci questo percorso con la cartella reale di PlantVillage sul tuo PC
+        String plantVillagePath = "C:/Users/Ion/IdeaProjects/Vaimee/VSA/plant-angine-main/train";
+        String outputFolder = "edge_brain"; // Qui verranno salvati i file .bin
+
+        try {
+            PcFeatureExtractor realPcEye = new PcFeatureExtractor(modelPath);
+            RandomProjectionBridge bridge = new RandomProjectionBridge(1280, 42L);
+            DatasetStatTracker tracker = new DatasetStatTracker(10000);
+
+            PlantVillageTrainer autoTrainer = new PlantVillageTrainer(realPcEye, bridge, tracker);
+
+            // Fai partire il macinino!
+            autoTrainer.trainDataset(plantVillagePath, outputFolder);
+
+            realPcEye.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}

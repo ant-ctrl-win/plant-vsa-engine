@@ -1,5 +1,6 @@
 package org.antonio;
 
+import org.antonio.bridge.DatasetStatTracker;
 import org.antonio.bridge.RandomProjectionBridge;
 import org.antonio.domain.PlantDiseaseDiagnostician;
 import org.antonio.perception.FeatureExtractor;
@@ -9,11 +10,14 @@ import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.List;
+import java.util.Arrays;
+import java.util.Collections;
 
 public class Main {
 
     public static void main(String[] args) {
-        System.out.println("--- AVVIO MOTORE VSA/HDC SU PC ---");
+        System.out.println("--- AVVIO MOTORE VSA/HDC SU PC (LATE BINARIZATION) ---");
 
         // Assicurati che questo percorso punti alla cartella estratta da Colab
         String modelPath = "src/main/resources/mobilenet_savedmodel";
@@ -22,23 +26,50 @@ public class Main {
         try {
             // 1. INIZIALIZZAZIONE DEL SISTEMA NEURO-SIMBOLICO
             realPcEye = new PcFeatureExtractor(modelPath);
-            RandomProjectionBridge bridge = new RandomProjectionBridge(1280, 42L); // 42 è il nostro seme fisso
-            PlantDiseaseDiagnostician doctor = new PlantDiseaseDiagnostician(realPcEye, bridge);
+
+            // Inizializziamo il Bridge con 1280 feature in input e seme 42
+            RandomProjectionBridge bridge = new RandomProjectionBridge(1280, 42L);
+
+            // Inizializziamo il Tracker per le 10.000 dimensioni VSA
+            DatasetStatTracker tracker = new DatasetStatTracker(10000);
+
+            // Creiamo il nostro "Medico"
+            PlantDiseaseDiagnostician doctor = new PlantDiseaseDiagnostician(realPcEye, bridge, tracker);
 
             // 2. CARICAMENTO DELLE FOTO REALI
-            // Assicurati di avere queste tre foto (es. .jpg) nella root del tuo progetto IntelliJ
             System.out.println("\nCaricamento immagini dal disco in corso...");
-            float[][][] imageHealthy = loadImage("sana.jpg");
-            float[][][] imageSick = loadImage("malata.jpg");
+            float[][][] imgH1 = loadImage("sana.jpg");
+            float[][][] imgS1 = loadImage("malata.jpg");
+            float[][][] imgS2 = loadImage("malata_1.jpg"); // Seconda foto malata
             float[][][] imageTest = loadImage("test.jpg");
             System.out.println("Immagini caricate e processate con successo.");
 
-            // 3. FEW-SHOT LEARNING (Apprendimento sul campo)
-            System.out.println("\n[Fase 1: Few-Shot Learning]");
-            doctor.teachHealthy(imageHealthy);
-            doctor.teachSick(imageSick);
+            // Creiamo i batch (Liste) per l'addestramento
+            // Usa singletonList per un singolo elemento (non fa unboxing)
+            List<float[][][]> datasetSano = Collections.singletonList(imgH1);
 
-            // 4. DIAGNOSI DELL'IMMAGINE INCOGNITA
+            // Usa asList per più elementi
+            List<float[][][]> datasetMalato = Arrays.asList(imgS1, imgS2);
+
+            // 3. FASE DI FIT DELLE STATISTICHE (Z-Score)
+            System.out.println("\n[Fase 0: Analisi Statistica del Dataset]");
+            // Estraiamo e proiettiamo le feature per farle "osservare" al tracker
+            tracker.observe(bridge.projectToContinuous(realPcEye.extractFeatures(imgH1)));
+            tracker.observe(bridge.projectToContinuous(realPcEye.extractFeatures(imgS1)));
+            tracker.observe(bridge.projectToContinuous(realPcEye.extractFeatures(imgS2)));
+
+            // Chiudiamo i calcoli e generiamo gli array Mu e Sigma
+            tracker.finalizeStats();
+
+            // Salviamo il "cervello" statistico su file (Questo file ~80KB andrà su Android!)
+            tracker.exportToFile("vsa_stats.bin");
+
+            // 4. CREAZIONE DEGLI ARCHETIPI (Bundling Continuo & Binarizzazione)
+            System.out.println("\n[Fase 1: Creazione Archetipi (Bundling)]");
+            doctor.teachHealthy(datasetSano);
+            doctor.teachSick(datasetMalato);
+
+            // 5. DIAGNOSI DELL'IMMAGINE INCOGNITA
             System.out.println("\n[Fase 2: Diagnosi della nuova foto]");
             String diagnosis = doctor.diagnose(imageTest);
 
@@ -48,7 +79,7 @@ public class Main {
             System.err.println("Errore durante l'esecuzione:");
             e.printStackTrace();
         } finally {
-            // 5. PULIZIA DELLA MEMORIA
+            // 6. PULIZIA DELLA MEMORIA
             if (realPcEye instanceof PcFeatureExtractor) {
                 ((PcFeatureExtractor) realPcEye).close();
                 System.out.println("\nMotore TensorFlow chiuso correttamente.");
