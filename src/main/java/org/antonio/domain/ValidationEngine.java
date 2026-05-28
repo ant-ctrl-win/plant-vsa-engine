@@ -168,7 +168,7 @@ public class ValidationEngine {
         String archetypesFile = "edge_brain/vsa_archetypes.bin";
 
         // Sostituisci questo con il percorso reale della tua cartella "val" di PlantVillage
-        String validationDir = "C:/Users/Ion/IdeaProjects/Vaimee/VSA/plant-angine-main/val";
+        String validationDir = "C:/Users/Ion/IdeaProjects/Vaimee/VSA/plantVillageCNN/val";
 
         try {
             ValidationEngine validator = new ValidationEngine(modelPath, statsFile, archetypesFile);
