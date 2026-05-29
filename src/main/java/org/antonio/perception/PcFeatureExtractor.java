@@ -53,7 +53,7 @@ public class PcFeatureExtractor implements FeatureExtractor {
                 .get();
 
         // 3. Estraiamo le feature finali
-        float[] features = new float[1280];
+        float[] features = new float[CNN_FEATURE_SIZE];
         ((TFloat32) outputTensor).asRawTensor().data().asFloats().read(features);
 
         imageTensor.close();

@@ -33,7 +33,7 @@ public class EdgeInferenceEngine {
         this.cnn = new PcFeatureExtractor(modelPath);
 
         // 2. Inizializza la matrice logica fissa
-        this.bridge = new RandomProjectionBridge(1280, 42L);
+        this.bridge = new RandomProjectionBridge(FeatureExtractor.CNN_FEATURE_SIZE, 42L);
 
         // 3. Carica le medie e le deviazioni standard globali dal file (Frazione di millisecondo)
         this.tracker = DatasetStatTracker.importFromFile(statsFilePath);

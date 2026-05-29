@@ -5,6 +5,7 @@ import org.antonio.bridge.RandomProjectionBridge;
 import org.antonio.domain.PlantDiseaseDiagnostician;
 import org.antonio.perception.FeatureExtractor;
 import org.antonio.perception.PcFeatureExtractor;
+import org.antonio.vsa.VsaVector;
 
 import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
@@ -28,10 +29,10 @@ public class Main {
             realPcEye = new PcFeatureExtractor(modelPath);
 
             // Inizializziamo il Bridge con 1280 feature in input e seme 42
-            RandomProjectionBridge bridge = new RandomProjectionBridge(1280, 42L);
+            RandomProjectionBridge bridge = new RandomProjectionBridge(FeatureExtractor.CNN_FEATURE_SIZE, 42L);
 
             // Inizializziamo il Tracker per le 10.000 dimensioni VSA
-            DatasetStatTracker tracker = new DatasetStatTracker(10000);
+            DatasetStatTracker tracker = new DatasetStatTracker(VsaVector.DIMENSIONS);
 
             // Creiamo il nostro "Medico"
             PlantDiseaseDiagnostician doctor = new PlantDiseaseDiagnostician(realPcEye, bridge, tracker);

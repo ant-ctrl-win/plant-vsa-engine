@@ -3,7 +3,9 @@ package org.antonio;
 import org.antonio.bridge.DatasetStatTracker;
 import org.antonio.bridge.RandomProjectionBridge;
 import org.antonio.domain.PlantVillageTrainer;
+import org.antonio.perception.FeatureExtractor;
 import org.antonio.perception.PcFeatureExtractor;
+import org.antonio.vsa.VsaVector;
 
 public class Trainer {
     public static void main(String[] args) {
@@ -17,8 +19,8 @@ public class Trainer {
 
         try {
             PcFeatureExtractor realPcEye = new PcFeatureExtractor(modelPath);
-            RandomProjectionBridge bridge = new RandomProjectionBridge(1280, 42L);
-            DatasetStatTracker tracker = new DatasetStatTracker(10000);
+        RandomProjectionBridge bridge = new RandomProjectionBridge(FeatureExtractor.CNN_FEATURE_SIZE, 42L);
+        DatasetStatTracker tracker = new DatasetStatTracker(VsaVector.DIMENSIONS);
 
             PlantVillageTrainer autoTrainer = new PlantVillageTrainer(realPcEye, bridge, tracker);
 

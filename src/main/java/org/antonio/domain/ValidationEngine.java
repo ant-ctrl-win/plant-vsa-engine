@@ -28,7 +28,7 @@ public class ValidationEngine {
     public ValidationEngine(String modelPath, String statsFilePath, String archetypesFilePath) throws Exception {
         System.out.println("\n[VALIDAZIONE] Inizializzazione Motore Edge...");
         this.cnn = new PcFeatureExtractor(modelPath);
-        this.bridge = new RandomProjectionBridge(1280, 42L);
+        this.bridge = new RandomProjectionBridge(FeatureExtractor.CNN_FEATURE_SIZE, 42L);
         this.tracker = DatasetStatTracker.importFromFile(statsFilePath);
         this.archetypes = loadArchetypes(archetypesFilePath);
     }
