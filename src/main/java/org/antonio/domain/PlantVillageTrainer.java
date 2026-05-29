@@ -48,7 +48,10 @@ public class PlantVillageTrainer {
 
         for (File classFolder : classFolders) {
             String className = classFolder.getName();
-            File[] images = classFolder.listFiles((dir, name) -> name.toLowerCase().endsWith(".jpg") || name.toLowerCase().endsWith(".png"));
+            File[] images = classFolder.listFiles((dir, name) -> {
+                String lower = name.toLowerCase();
+                return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
+            });
 
             if (images == null || images.length == 0) continue;
 

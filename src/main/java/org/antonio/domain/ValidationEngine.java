@@ -61,7 +61,10 @@ public class ValidationEngine {
             String trueClass = classFolder.getName();
             classStats.put(trueClass, new int[]{0, 0});
 
-            File[] images = classFolder.listFiles((dir, name) -> name.toLowerCase().endsWith(".jpg") || name.toLowerCase().endsWith(".png"));
+            File[] images = classFolder.listFiles((dir, name) -> {
+                String lower = name.toLowerCase();
+                return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
+            });
             if (images == null || images.length == 0) continue;
 
             System.out.println("Test in corso sulla classe: [" + trueClass + "] - " + images.length + " immagini...");
@@ -168,7 +171,7 @@ public class ValidationEngine {
         String archetypesFile = "edge_brain/vsa_archetypes.bin";
 
         // Sostituisci questo con il percorso reale della tua cartella "val" di PlantVillage
-        String validationDir = "C:/Users/Ion/IdeaProjects/Vaimee/VSA/plant-angine-main/val";
+        String validationDir = "dataset/val";
 
         try {
             ValidationEngine validator = new ValidationEngine(modelPath, statsFile, archetypesFile);

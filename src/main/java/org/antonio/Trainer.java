@@ -9,7 +9,10 @@ public class Trainer {
     public static void main(String[] args) {
         String modelPath = "src/main/resources/mobilenet_savedmodel";
         // Sostituisci questo percorso con la cartella reale di PlantVillage sul tuo PC
-        String plantVillagePath = "C:/Users/Ion/IdeaProjects/Vaimee/VSA/plant-angine-main/train";
+//        String plantVillagePath = "../dataset/train";
+        String plantVillagePath = "C:\\Users\\Ion\\IdeaProjects\\Vaimee\\VSA\\plant-angine-main\\dataset\\train";
+        // C:\Users\Ion\IdeaProjects\Vaimee\VSA\plant-angine-main\plant-vsa-engine
+
         String outputFolder = "edge_brain"; // Qui verranno salvati i file .bin
 
         try {
